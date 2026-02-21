@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Production-ready website crawler and ZIP downloader",
   "engines": {
-    "node": ">=18.x"
+    "node": ">=20.x"
   },
   "scripts": {
     "dev": "vercel dev",
