@@ -141,25 +141,30 @@ module.exports = async function handler(req, res) {
   res.setHeader('X-Request-Id', requestId);
   res.setHeader('Cache-Control', 'no-store');
 
-  const stream = fs.createReadStream(zipPath);
-
-  stream.on('error', (err) => {
-    logger.error('Stream error', { requestId, error: err.message });
-    if (!res.headersSent) {
-      res.status(500).end();
-    }
-  });
-
-  stream.on('end', () => {
+  try {
+    const stream = fs.createReadStream(zipPath);
+    await new Promise((resolve, reject) => {
+      stream.on('error', (err) => {
+        logger.error('Stream error', { requestId, error: err.message });
+        if (!res.headersSent) {
+          res.status(500).end();
+        }
+        reject(err);
+      });
+      res.on('finish', resolve);
+      res.on('close', resolve);
+      stream.pipe(res);
+    });
     logger.info('ZIP sent successfully', { requestId });
-    // Schedule cleanup after a short delay to ensure file is fully sent
-    setTimeout(() => {
-      const sessionDir = path.dirname(zipPath);
-      cleanupDir(sessionDir).catch((e) =>
-        logger.warn('Cleanup failed', { sessionId, error: e.message })
-      );
-    }, 5000);
-  });
-
-  stream.pipe(res);
+  } catch (err) {
+    logger.error('Error streaming ZIP', { requestId, error: err.message });
+  } finally {
+    // Blocking cleanup: guarantees Vercel doesn't freeze the filesystem with temp files
+    const sessionDir = path.dirname(zipPath);
+    try {
+      await cleanupDir(sessionDir);
+    } catch (e) {
+      logger.warn('Cleanup failed', { sessionId, error: e.message });
+    }
+  }
 };
