@@ -10,7 +10,7 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "@sparticuz/chromium": "^123.0.1",
+    "@sparticuz/chromium": "^143.0.4",
     "archiver": "^6.0.1",
     "axios": "^1.6.7",
     "cheerio": "^1.0.0-rc.12",
@@ -18,7 +18,7 @@
     "helmet": "^8.1.0",
     "mime-types": "^2.1.35",
     "p-limit": "^5.0.0",
-    "puppeteer-core": "^22.11.0",
+    "puppeteer-core": "^24.37.5",
     "sanitize-filename": "^1.6.3",
     "uuid": "^9.0.0",
     "winston": "^3.19.0"

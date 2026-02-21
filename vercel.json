@@ -3,6 +3,7 @@
   "name": "website-to-zip",
   "env": {
     "NODE_ENV": "production",
+    "AWS_LAMBDA_JS_RUNTIME": "nodejs20.x",
     "CRAWL_MAX_DEPTH": "1",
     "CRAWL_MAX_PAGES": "10",
     "ASSET_CONCURRENCY": "6",
