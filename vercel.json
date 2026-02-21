@@ -1,25 +1,13 @@
 {
   "version": 2,
   "name": "website-to-zip",
-  "builds": [
-    {
-      "src": "api/download.js",
-      "use": "@vercel/node",
-      "config": {
-        "memory": 3008,
-        "maxDuration": 60
-      }
-    },
-    {
-      "src": "public/**",
-      "use": "@vercel/static"
-    }
-  ],
   "routes": [
     {
       "src": "/api/download",
       "dest": "/api/download.js",
-      "methods": ["POST"],
+      "methods": [
+        "POST"
+      ],
       "headers": {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -29,7 +17,9 @@
     {
       "src": "/api/health",
       "dest": "/api/download.js",
-      "methods": ["GET"]
+      "methods": [
+        "GET"
+      ]
     },
     {
       "src": "/(.*)",
