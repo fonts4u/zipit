@@ -38,8 +38,8 @@
   },
   "functions": {
     "api/download.js": {
-      "memory": 3008,
-      "maxDuration": 60
+      "memory": 2048,
+      "maxDuration": 10
     }
   },
   "headers": [
