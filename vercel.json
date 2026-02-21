@@ -1,0 +1,74 @@
+{
+  "version": 2,
+  "name": "website-to-zip",
+  "builds": [
+    {
+      "src": "api/download.js",
+      "use": "@vercel/node",
+      "config": {
+        "memory": 3008,
+        "maxDuration": 60
+      }
+    },
+    {
+      "src": "public/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/download",
+      "dest": "/api/download.js",
+      "methods": ["POST"],
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type"
+      }
+    },
+    {
+      "src": "/api/health",
+      "dest": "/api/download.js",
+      "methods": ["GET"]
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/public/$1"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production",
+    "CRAWL_MAX_DEPTH": "1",
+    "CRAWL_MAX_PAGES": "10",
+    "ASSET_CONCURRENCY": "6",
+    "RATE_LIMIT_MAX": "3",
+    "RATE_LIMIT_WINDOW_MS": "60000",
+    "PAGE_TIMEOUT_MS": "25000",
+    "CRAWL_TIMEOUT_MS": "55000"
+  },
+  "functions": {
+    "api/download.js": {
+      "memory": 3008,
+      "maxDuration": 60
+    }
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        }
+      ]
+    }
+  ]
+}

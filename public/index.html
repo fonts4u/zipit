@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SiteZip — Archive Any Website</title>
+  <meta name="description" content="Enter any URL and download a complete offline copy as a ZIP file. Supports dynamic JS-rendered sites." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── DESIGN TOKENS ─── */
+    :root {
+      --bg:         #0a0a0f;
+      --bg-card:    #111118;
+      --bg-input:   #16161f;
+      --border:     #2a2a38;
+      --border-hl:  #5b4fff;
+      --accent:     #5b4fff;
+      --accent-dim: #3d36b0;
+      --accent-glow:rgba(91, 79, 255, 0.35);
+      --text-1:     #f0f0f8;
+      --text-2:     #9090ab;
+      --text-3:     #5a5a72;
+      --success:    #2dce7a;
+      --error:      #ff5a5a;
+      --warning:    #ffb830;
+      --mono:       'Space Mono', monospace;
+      --sans:       'DM Sans', sans-serif;
+      --radius:     10px;
+      --transition: 220ms cubic-bezier(.4,0,.2,1);
+    }
+
+    /* ─── RESET ─── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text-1);
+      font-family: var(--sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* ─── NOISE TEXTURE OVERLAY ─── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.4;
+    }
+
+    /* ─── RADIAL GLOW ─── */
+    .bg-glow {
+      position: fixed;
+      width: 800px;
+      height: 800px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(91,79,255,0.08) 0%, transparent 65%);
+      top: -200px;
+      left: 50%;
+      transform: translateX(-50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ─── LAYOUT ─── */
+    .page-wrapper {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 680px;
+      padding: 0 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-bottom: 80px;
+    }
+
+    /* ─── HEADER ─── */
+    header {
+      margin-top: 72px;
+      margin-bottom: 48px;
+      text-align: center;
+    }
+
+    .logo-mark {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 24px var(--accent-glow);
+    }
+
+    .logo-icon svg { width: 22px; height: 22px; fill: white; }
+
+    .logo-text {
+      font-family: var(--mono);
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--text-1);
+    }
+
+    h1 {
+      font-family: var(--sans);
+      font-size: clamp(28px, 5vw, 42px);
+      font-weight: 600;
+      line-height: 1.2;
+      letter-spacing: -1px;
+      color: var(--text-1);
+      margin-bottom: 14px;
+    }
+
+    h1 span {
+      background: linear-gradient(135deg, var(--accent), #9b87ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      font-size: 15px;
+      color: var(--text-2);
+      line-height: 1.6;
+      max-width: 440px;
+      margin: 0 auto;
+    }
+
+    /* ─── MAIN CARD ─── */
+    .card {
+      width: 100%;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(91,79,255,0.5), transparent);
+    }
+
+    /* ─── URL INPUT GROUP ─── */
+    .input-label {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--text-3);
+      margin-bottom: 10px;
+      display: block;
+    }
+
+    .input-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .url-input {
+      flex: 1;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-1);
+      font-family: var(--mono);
+      font-size: 13px;
+      padding: 13px 16px;
+      outline: none;
+      transition: border-color var(--transition), box-shadow var(--transition);
+      caret-color: var(--accent);
+    }
+
+    .url-input::placeholder { color: var(--text-3); }
+
+    .url-input:focus {
+      border-color: var(--border-hl);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    .url-input.error {
+      border-color: var(--error);
+      box-shadow: 0 0 0 3px rgba(255,90,90,0.2);
+    }
+
+    /* ─── OPTIONS ROW ─── */
+    .options-row {
+      display: flex;
+      gap: 24px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+
+    .option-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+      min-width: 160px;
+    }
+
+    .option-select {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-1);
+      font-family: var(--sans);
+      font-size: 13px;
+      padding: 10px 12px;
+      outline: none;
+      cursor: pointer;
+      transition: border-color var(--transition);
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235a5a72' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 32px;
+    }
+
+    .option-select:focus { border-color: var(--border-hl); }
+
+    /* ─── DOWNLOAD BUTTON ─── */
+    .btn-download {
+      width: 100%;
+      padding: 15px 24px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-dim));
+      border: none;
+      border-radius: var(--radius);
+      color: white;
+      font-family: var(--sans);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: opacity var(--transition), transform var(--transition), box-shadow var(--transition);
+      box-shadow: 0 4px 20px var(--accent-glow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-download::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+      opacity: 0;
+      transition: opacity var(--transition);
+    }
+
+    .btn-download:hover:not(:disabled)::after { opacity: 1; }
+    .btn-download:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 28px var(--accent-glow);
+    }
+    .btn-download:active:not(:disabled) { transform: translateY(0); }
+    .btn-download:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-icon svg { width: 18px; height: 18px; fill: none; stroke: white; stroke-width: 2; }
+
+    /* ─── PROGRESS ─── */
+    #status-area {
+      margin-top: 24px;
+      display: none;
+    }
+
+    #status-area.visible { display: block; }
+
+    .progress-track {
+      height: 3px;
+      background: var(--border);
+      border-radius: 999px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), #9b87ff);
+      border-radius: 999px;
+      width: 0%;
+      transition: width 0.4s ease;
+      position: relative;
+    }
+
+    .progress-bar.indeterminate {
+      width: 40%;
+      animation: indeterminate 1.6s ease infinite;
+    }
+
+    @keyframes indeterminate {
+      0%   { transform: translateX(-100%); }
+      100% { transform: translateX(350%); }
+    }
+
+    .status-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .step {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+      color: var(--text-3);
+      transition: color var(--transition);
+    }
+
+    .step.active { color: var(--text-1); }
+    .step.done { color: var(--success); }
+    .step.failed { color: var(--error); }
+
+    .step-dot {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 2px solid currentColor;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 10px;
+      transition: all var(--transition);
+    }
+
+    .step.active .step-dot {
+      border-color: var(--accent);
+      background: var(--accent);
+      box-shadow: 0 0 10px var(--accent-glow);
+      animation: pulse 1.4s ease infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 10px var(--accent-glow); }
+      50%       { box-shadow: 0 0 20px rgba(91,79,255,0.6); }
+    }
+
+    .step.done .step-dot {
+      border-color: var(--success);
+      background: var(--success);
+      color: var(--bg);
+    }
+
+    .step.done .step-dot::after { content: '✓'; font-size: 11px; font-weight: 700; }
+    .step.active .step-dot::after { content: ''; }
+
+    /* ─── ALERTS ─── */
+    .alert {
+      padding: 14px 16px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      line-height: 1.5;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      margin-top: 16px;
+    }
+
+    .alert-icon { flex-shrink: 0; margin-top: 1px; }
+    .alert-icon svg { width: 16px; height: 16px; }
+
+    .alert.alert-error {
+      background: rgba(255,90,90,0.08);
+      border: 1px solid rgba(255,90,90,0.25);
+      color: #ff8080;
+    }
+
+    .alert.alert-success {
+      background: rgba(45,206,122,0.08);
+      border: 1px solid rgba(45,206,122,0.25);
+      color: var(--success);
+    }
+
+    /* ─── INFO PILLS (features) ─── */
+    .features {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 40px;
+      justify-content: center;
+    }
+
+    .pill {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-3);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 5px 12px;
+      letter-spacing: 0.3px;
+      transition: all var(--transition);
+    }
+
+    .pill:hover {
+      color: var(--text-2);
+      border-color: var(--text-3);
+    }
+
+    /* ─── FOOTER ─── */
+    footer {
+      margin-top: 48px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-3);
+      text-align: center;
+      letter-spacing: 0.5px;
+    }
+
+    footer a { color: var(--text-3); text-decoration: none; }
+    footer a:hover { color: var(--text-2); }
+
+    /* ─── STATS ROW ─── */
+    .stats-row {
+      display: flex;
+      gap: 1px;
+      margin-top: 24px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .stat-item {
+      flex: 1;
+      background: var(--bg-card);
+      padding: 14px 16px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-family: var(--mono);
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-1);
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: var(--text-3);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    /* ─── SPINNER ─── */
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── ANIMATIONS ─── */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    header { animation: fadeInUp 0.5s ease both; }
+    .card  { animation: fadeInUp 0.5s 0.1s ease both; }
+    .features { animation: fadeInUp 0.5s 0.2s ease both; }
+
+    /* ─── RESPONSIVE ─── */
+    @media (max-width: 520px) {
+      .card { padding: 20px; }
+      .input-group { flex-direction: column; }
+      .options-row { flex-direction: column; gap: 12px; }
+      .stats-row { flex-direction: column; gap: 1px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-glow"></div>
+
+  <div class="page-wrapper">
+
+    <!-- HEADER -->
+    <header>
+      <div class="logo-mark">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        </div>
+        <span class="logo-text">SiteZip</span>
+      </div>
+      <h1>Archive any website<br/><span>as a ZIP file</span></h1>
+      <p class="subtitle">
+        Enter a URL and we'll crawl the site, download all assets, rewrite paths, and hand you a clean offline archive.
+      </p>
+    </header>
+
+    <!-- MAIN CARD -->
+    <div class="card">
+      <label class="input-label" for="url-input">Target URL</label>
+
+      <div class="input-group">
+        <input
+          id="url-input"
+          class="url-input"
+          type="url"
+          placeholder="https://example.com"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="none"
+          spellcheck="false"
+        />
+      </div>
+
+      <div class="options-row">
+        <div class="option-group">
+          <label class="input-label" for="depth-select">Crawl Depth</label>
+          <select id="depth-select" class="option-select">
+            <option value="0">Single page only</option>
+            <option value="1" selected>1 level deep</option>
+            <option value="2">2 levels deep</option>
+          </select>
+        </div>
+        <div class="option-group">
+          <label class="input-label" for="pages-select">Max Pages</label>
+          <select id="pages-select" class="option-select">
+            <option value="5">5 pages</option>
+            <option value="10" selected>10 pages</option>
+            <option value="20">20 pages</option>
+          </select>
+        </div>
+      </div>
+
+      <button class="btn-download" id="download-btn">
+        <span class="btn-icon">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </span>
+        <span id="btn-text">Download ZIP</span>
+      </button>
+
+      <!-- STATUS / PROGRESS AREA -->
+      <div id="status-area">
+        <div class="progress-track">
+          <div class="progress-bar indeterminate" id="progress-bar"></div>
+        </div>
+
+        <div class="status-steps" id="steps-list">
+          <div class="step" id="step-validate" data-step="validate">
+            <div class="step-dot"></div>
+            <span>Validating URL & checking security</span>
+          </div>
+          <div class="step" id="step-render" data-step="render">
+            <div class="step-dot"></div>
+            <span>Rendering page with headless browser</span>
+          </div>
+          <div class="step" id="step-assets" data-step="assets">
+            <div class="step-dot"></div>
+            <span>Discovering & downloading assets</span>
+          </div>
+          <div class="step" id="step-rewrite" data-step="rewrite">
+            <div class="step-dot"></div>
+            <span>Rewriting paths to local references</span>
+          </div>
+          <div class="step" id="step-zip" data-step="zip">
+            <div class="step-dot"></div>
+            <span>Packaging into ZIP archive</span>
+          </div>
+        </div>
+
+        <div id="alert-area"></div>
+      </div>
+    </div>
+
+    <!-- STATS ROW (initially hidden, shown after download) -->
+    <div class="stats-row" id="stats-row" style="display:none;">
+      <div class="stat-item">
+        <div class="stat-value" id="stat-pages">—</div>
+        <div class="stat-label">Pages</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="stat-assets">—</div>
+        <div class="stat-label">Assets</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="stat-size">—</div>
+        <div class="stat-label">ZIP size</div>
+      </div>
+    </div>
+
+    <!-- FEATURE PILLS -->
+    <div class="features">
+      <span class="pill">SPA / JS rendering</span>
+      <span class="pill">CSS + fonts + images</span>
+      <span class="pill">Lazy-load images</span>
+      <span class="pill">Path rewriting</span>
+      <span class="pill">SSRF protection</span>
+      <span class="pill">Rate limited</span>
+      <span class="pill">Temp file cleanup</span>
+    </div>
+
+    <!-- FOOTER -->
+    <footer>
+      <p>SiteZip &middot; Built with Node.js + Puppeteer + Cheerio &middot; <a href="/api/health">API Status</a></p>
+    </footer>
+
+  </div>
+
+  <script>
+    'use strict';
+
+    // ─── DOM REFERENCES ───────────────────────────────────────────────────────
+    const urlInput    = document.getElementById('url-input');
+    const depthSelect = document.getElementById('depth-select');
+    const pagesSelect = document.getElementById('pages-select');
+    const downloadBtn = document.getElementById('download-btn');
+    const btnText     = document.getElementById('btn-text');
+    const statusArea  = document.getElementById('status-area');
+    const progressBar = document.getElementById('progress-bar');
+    const alertArea   = document.getElementById('alert-area');
+    const statsRow    = document.getElementById('stats-row');
+
+    // Step elements
+    const steps = {
+      validate: document.getElementById('step-validate'),
+      render:   document.getElementById('step-render'),
+      assets:   document.getElementById('step-assets'),
+      rewrite:  document.getElementById('step-rewrite'),
+      zip:      document.getElementById('step-zip'),
+    };
+
+    // ─── STATE ────────────────────────────────────────────────────────────────
+    let isDownloading = false;
+
+    // ─── STEP MANAGER ─────────────────────────────────────────────────────────
+    const StepManager = {
+      current: null,
+
+      reset() {
+        Object.values(steps).forEach(el => {
+          el.className = 'step';
+          el.querySelector('.step-dot').textContent = '';
+        });
+        this.current = null;
+      },
+
+      setActive(stepId) {
+        if (this.current && this.current !== stepId) {
+          this.setDone(this.current);
+        }
+        steps[stepId].className = 'step active';
+        this.current = stepId;
+      },
+
+      setDone(stepId) {
+        steps[stepId].className = 'step done';
+      },
+
+      setFailed(stepId) {
+        steps[stepId].className = 'step failed';
+      },
+
+      completeAll() {
+        Object.keys(steps).forEach(id => this.setDone(id));
+      }
+    };
+
+    // ─── UI HELPERS ───────────────────────────────────────────────────────────
+    function showAlert(type, message) {
+      const icons = {
+        error: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+        </svg>`,
+        success: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>`
+      };
+
+      alertArea.innerHTML = `
+        <div class="alert alert-${type}">
+          <span class="alert-icon">${icons[type] || ''}</span>
+          <span>${message}</span>
+        </div>
+      `;
+    }
+
+    function clearAlert() {
+      alertArea.innerHTML = '';
+    }
+
+    function setLoadingState(loading) {
+      isDownloading = loading;
+      downloadBtn.disabled = loading;
+      urlInput.disabled = loading;
+      depthSelect.disabled = loading;
+      pagesSelect.disabled = loading;
+
+      if (loading) {
+        btnText.textContent = 'Archiving...';
+        downloadBtn.innerHTML = `
+          <div class="spinner"></div>
+          <span>Archiving website...</span>
+        `;
+        statusArea.classList.add('visible');
+        progressBar.classList.add('indeterminate');
+        urlInput.classList.remove('error');
+        clearAlert();
+        StepManager.reset();
+        statsRow.style.display = 'none';
+      } else {
+        downloadBtn.innerHTML = `
+          <span class="btn-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+          </span>
+          <span>Download ZIP</span>
+        `;
+      }
+    }
+
+    // ─── URL VALIDATION (client-side pre-check) ───────────────────────────────
+    function isValidUrl(str) {
+      try {
+        const url = new URL(str.startsWith('http') ? str : `https://${str}`);
+        return url.protocol === 'http:' || url.protocol === 'https:';
+      } catch {
+        return false;
+      }
+    }
+
+    // ─── SIMULATE PROGRESS STEPS ─────────────────────────────────────────────
+    // Since we can't get real-time progress from a single HTTP response,
+    // we simulate the steps with timed transitions that approximate actual work.
+    function simulateProgress() {
+      const delays = [
+        { step: 'validate', delay: 400  },
+        { step: 'render',   delay: 3000 },
+        { step: 'assets',   delay: 8000 },
+        { step: 'rewrite',  delay: 4000 },
+        { step: 'zip',      delay: 2000 },
+      ];
+
+      let cumulative = 0;
+      const timers = [];
+
+      delays.forEach(({ step, delay }) => {
+        const t = setTimeout(() => {
+          if (isDownloading) StepManager.setActive(step);
+        }, cumulative);
+        timers.push(t);
+        cumulative += delay;
+      });
+
+      return timers;
+    }
+
+    // ─── TRIGGER BROWSER DOWNLOAD FROM BLOB ──────────────────────────────────
+    function triggerDownload(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }, 1000);
+    }
+
+    // ─── FORMAT BYTES ─────────────────────────────────────────────────────────
+    function formatBytes(bytes) {
+      if (bytes < 1024) return `${bytes} B`;
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+      return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+    }
+
+    // ─── MAIN DOWNLOAD HANDLER ───────────────────────────────────────────────
+    async function handleDownload() {
+      if (isDownloading) return;
+
+      const rawUrl = urlInput.value.trim();
+
+      // Client-side validation
+      if (!rawUrl) {
+        urlInput.classList.add('error');
+        urlInput.focus();
+        return;
+      }
+
+      if (!isValidUrl(rawUrl)) {
+        urlInput.classList.add('error');
+        showAlert('error', 'Please enter a valid URL (e.g., https://example.com)');
+        statusArea.classList.add('visible');
+        return;
+      }
+
+      const targetUrl = rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`;
+
+      setLoadingState(true);
+      const progressTimers = simulateProgress();
+
+      try {
+        const response = await fetch('/api/download', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: targetUrl,
+            maxDepth: parseInt(depthSelect.value, 10),
+            maxPages: parseInt(pagesSelect.value, 10),
+          }),
+          // Signal abort after 70 seconds (slightly beyond server timeout)
+          signal: AbortSignal.timeout(70000),
+        });
+
+        // Clear simulation timers
+        progressTimers.forEach(clearTimeout);
+
+        if (!response.ok) {
+          // Parse server error
+          let errorMsg = `Server error (${response.status})`;
+          try {
+            const errData = await response.json();
+            errorMsg = errData.error || errorMsg;
+          } catch {
+            // ignore parse error
+          }
+
+          StepManager.setFailed(StepManager.current || 'validate');
+          progressBar.classList.remove('indeterminate');
+          showAlert('error', errorMsg);
+          return;
+        }
+
+        // Complete all steps visually
+        StepManager.completeAll();
+        progressBar.classList.remove('indeterminate');
+        progressBar.style.width = '100%';
+
+        // Get the blob
+        const blob = await response.blob();
+        const sizeBytes = blob.size;
+
+        // Derive filename from Content-Disposition or URL
+        let filename = 'archive.zip';
+        const disposition = response.headers.get('Content-Disposition');
+        if (disposition) {
+          const match = disposition.match(/filename="([^"]+)"/);
+          if (match) filename = match[1];
+        }
+
+        // Trigger browser download
+        triggerDownload(blob, filename);
+
+        // Show success
+        showAlert('success', `✓ Archive ready — ${filename} (${formatBytes(sizeBytes)})`);
+
+        // Update stats
+        statsRow.style.display = 'flex';
+        document.getElementById('stat-size').textContent = formatBytes(sizeBytes);
+        // Pages and assets can't be determined from client side easily
+        document.getElementById('stat-pages').textContent = '✓';
+        document.getElementById('stat-assets').textContent = '✓';
+
+      } catch (err) {
+        progressTimers.forEach(clearTimeout);
+        progressBar.classList.remove('indeterminate');
+
+        let msg = 'An unexpected error occurred. Please try again.';
+        if (err.name === 'AbortError' || err.name === 'TimeoutError') {
+          msg = 'Request timed out. The site may be too large or too slow to crawl.';
+        } else if (!navigator.onLine) {
+          msg = 'You appear to be offline. Please check your connection.';
+        }
+
+        if (StepManager.current) {
+          StepManager.setFailed(StepManager.current);
+        }
+
+        showAlert('error', msg);
+        console.error('[SiteZip] Download error:', err);
+      } finally {
+        setLoadingState(false);
+      }
+    }
+
+    // ─── EVENT LISTENERS ──────────────────────────────────────────────────────
+    downloadBtn.addEventListener('click', handleDownload);
+
+    urlInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') handleDownload();
+    });
+
+    urlInput.addEventListener('input', () => {
+      urlInput.classList.remove('error');
+      clearAlert();
+    });
+
+    // Auto-focus URL input on load
+    urlInput.focus();
+  </script>
+</body>
+</html>
