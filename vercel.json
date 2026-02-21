@@ -1,31 +1,6 @@
 {
   "version": 2,
   "name": "website-to-zip",
-  "routes": [
-    {
-      "src": "/api/download",
-      "dest": "/api/download.js",
-      "methods": [
-        "POST"
-      ],
-      "headers": {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type"
-      }
-    },
-    {
-      "src": "/api/health",
-      "dest": "/api/download.js",
-      "methods": [
-        "GET"
-      ]
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/public/$1"
-    }
-  ],
   "env": {
     "NODE_ENV": "production",
     "CRAWL_MAX_DEPTH": "1",
@@ -44,6 +19,23 @@
   },
   "headers": [
     {
+      "source": "/api/download",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "POST, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type"
+        }
+      ]
+    },
+    {
       "source": "/api/(.*)",
       "headers": [
         {
@@ -59,6 +51,20 @@
           "value": "strict-origin-when-cross-origin"
         }
       ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/download",
+      "destination": "/api/download.js"
+    },
+    {
+      "source": "/api/health",
+      "destination": "/api/health.js"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/public/$1"
     }
   ]
 }
