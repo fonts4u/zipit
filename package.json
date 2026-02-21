@@ -22,8 +22,5 @@
     "sanitize-filename": "^1.6.3",
     "uuid": "^9.0.0",
     "winston": "^3.19.0"
-  },
-  "devDependencies": {
-    "vercel": "^33.4.1"
   }
 }
