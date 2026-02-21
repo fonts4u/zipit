@@ -2,7 +2,7 @@
 nixPkgs = ["nodejs", "chromium", "google-chrome"]
 
 [phases.build]
-cmds = ["npm install"]
+cmds = ["npm install --omit=dev"]
 
 [start]
 cmd = "npm start"
