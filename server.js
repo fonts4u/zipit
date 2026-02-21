@@ -1,4 +1,7 @@
 /**
+ * zipit - Archive any website as a ZIP file.
+ * Triggering Vercel rebuild.
+ *
  * server.js
  * Local development server wrapping the serverless handler in Express.
  * Not used in Vercel deployment - for local testing only.
