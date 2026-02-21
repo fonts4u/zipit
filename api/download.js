@@ -118,9 +118,9 @@ module.exports = async function handler(req, res) {
     logger.error('Crawl failed', { requestId, error: err.message, stack: err.stack });
 
     if (err.message.includes('timeout')) {
-      return sendError(res, 504, 'Site took too long to crawl. Try a simpler page or reduce crawl depth.');
+      return sendError(res, 504, 'The crawl exceeded the 10-second Hobby plan limit. Framer sites are heavy; try a simpler URL or upgrade to Vercel Pro.');
     }
-    return sendError(res, 500, 'Failed to crawl the website. It may be inaccessible or blocking scrapers.');
+    return sendError(res, 500, `Crawl error: ${err.message}. It may be blocking scrapers or taking too long to load.`);
   }
 
   // Step 4: Verify ZIP was created
